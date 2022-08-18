@@ -668,7 +668,7 @@ let make_record_exists patches pending len = fun i ->
   || Hashtbl.find_opt patches i <> None
   || (i < len && i >= 0)
 
-let make_record_access perm ic ic_acc shift array_pos (plenr, patches) (_, pending) len name input_array input_item =
+let make_record_access _perm ic ic_acc shift array_pos (plenr, patches) (_, pending) len name input_array input_item =
   let tab = ref None in
   let cleared = ref false in
   let gen_get nopending i =

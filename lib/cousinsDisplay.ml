@@ -212,10 +212,6 @@ let print_cousins_lev conf base max_cnt p lev1 lev2 =
   else Output.printf conf "%s.\n" (Utf8.capitalize_fst (transl conf "no match"));
   if lev1 > 1 then Output.print_string conf "</ul>\n"
 
-let include_templ conf name =
-  Util.include_template conf [] name
-    (fun () -> Output.printf conf "Failed to open: %s.txt" name)
-
 (* HTML main *)
 
 let print_cousins conf base p lev1 lev2 =

@@ -357,9 +357,6 @@ and ppget conf base p =
   else unsafe_mk_person conf base p
 
 and pget conf base ip =
-  let open Geneweb in
-  let open Config in
-  let open Def in
   let open Gwdb in
   if ip = dummy_iper
   then unsafe_mk_person conf base (Gwdb.empty_person base ip)
@@ -628,7 +625,7 @@ and unsafe_mk_person conf base (p : Gwdb.person) =
     let wrap s = Tpat (function "reason" -> Tstr s | _ -> raise Not_found) in
     match Gwdb.get_death p with
     | Def.NotDead -> Tnull
-    | Death (r, cd) ->
+    | Death (r, _cd) ->
       let reason = match r with
         | Def.Killed -> Tstr "Killed"
         | Murdered -> Tstr "Murdered"

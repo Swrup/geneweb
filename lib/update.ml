@@ -238,11 +238,6 @@ let prerr conf _err fn =
   end ;
   raise @@ ModErr _err
 
-let print_someone_strong _conf base p =
-  Printf.sprintf "<strong>%s%s %s</strong>" (p_first_name base p)
-    (if get_occ p = 0 then "" else "." ^ string_of_int (get_occ p))
-    (p_surname base p)
-
 let string_of_error conf =
   let fso f s o = f ^ "." ^ string_of_int o ^ " " ^ s in
   let fso_p base p =
@@ -310,7 +305,7 @@ let string_of_error conf =
     transl conf "the file is temporarily locked: please try again"
     |> Utf8.capitalize_fst
 
-let print_err_unknown conf base (f, s, o) =
+let print_err_unknown conf _base (f, s, o) =
   let err = UERR_unknow_person (f, s, o) in
   prerr conf err @@ fun () ->
   Output.print_string conf (string_of_error conf err);
@@ -1056,46 +1051,6 @@ let reconstitute_date conf var =
           let txt = only_printable (get var "text" conf.env) in
           if txt = "" then None else Some (Dtext txt)
       | _ -> None
-
-let parse_int s i =
-  let j =
-    let rec loop j =
-      if j = String.length s
-      || match String.unsafe_get s j with '0'..'9' -> false | _ -> true
-      then j
-      else loop (j + 1)
-    in
-    loop i
-  in
-  (int_of_string @@ String.sub s i (j - i), j)
-
-let text_of_var conf =
-  function
-  | "pa1" -> transl_nth conf "him/her" 0
-  | "pa2" -> transl_nth conf "him/her" 1
-  | var -> match String.get var 0 with
-    | 'r' ->
-      let (pos, i) = parse_int var 1 in
-      assert (String.get var i = '_') ;
-      let pn = match String.get var (i + 1) with 'f' -> 0 | 'm' -> 1 | _ -> assert false in
-      transl_nth conf "relation/relations" 0 ^ " " ^ string_of_int pos
-      ^ " - " ^ transl_nth conf "father/mother" pn
-    | 'e' ->
-      let (epos, i) = parse_int var 1 in
-      assert (String.get var i = '_') ;
-      assert (String.get var (i + 1) = 'w') ;
-      assert (String.get var (i + 2) = 'i') ;
-      assert (String.get var (i + 3) = 't') ;
-      assert (String.get var (i + 4) = 'n') ;
-      let (wpos, _) = parse_int var (i + 5) in
-      let a = transl_nth conf "witness/witnesses" 0 ^ " " ^ string_of_int wpos in
-      let b = transl_nth conf "event/events" 0 ^ " " ^ string_of_int epos in
-      transl_a_of_b conf a b b
-    | 'c' when String.length var >= 3 && String.unsafe_get var 1 = 'h' ->
-      let (pos, _) = parse_int var 2 in
-      Util.translate_eval (transl_nth conf "child/children" 0)
-      ^ " " ^ string_of_int pos
-    | _ -> var
 
 let print_create_conflict conf base p var =
   let err = UERR_already_defined (base, p, var) in

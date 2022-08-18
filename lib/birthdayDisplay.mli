@@ -35,7 +35,7 @@ val gen_print_menu_birth :
   (unit ->
    Gwdb.person *
    (Config.config -> Gwdb.base -> Gwdb.person -> string)) ->
-  (unit -> 'a) -> unit
+  (unit -> unit) -> unit
 
 (** Displays the main birthdays menu considering all alive people *)
 val print_menu_birth : Config.config -> Gwdb.base -> unit
@@ -54,7 +54,7 @@ val gen_print_menu_dead :
   (unit ->
    Gwdb.person *
    (Config.config -> Gwdb.base -> Gwdb.person -> string)) ->
-  (unit -> 'a) -> unit
+  (unit -> unit) -> unit
 
 (** Displays the main anniversaries menu considering all dead people *)
 val print_menu_dead : Config.config -> Gwdb.base -> unit
