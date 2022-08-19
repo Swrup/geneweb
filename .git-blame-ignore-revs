@@ -1,0 +1,5 @@
+# Use `git config blame.ignoreRevsFile .git-blame-ignore-revs`
+# to make git blame ignore commits in this file
+
+#First ocamlformat commit:
+208f0a7d57892d8142f0fe1bbe35e2baa4303cd7
