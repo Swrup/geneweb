@@ -1,7 +1,6 @@
 (* Copyright (c) 1998-2007 INRIA *)
 
 open Config
-open Gwdb
 open Util
 open Notes
 
@@ -139,9 +138,9 @@ let print_linked_list conf base pgl =
            end;
            Output.print_string conf "</tt>\n"
        | Def.NLDB.PgFam ifam ->
-           let fam = foi base ifam in
-           let fath = pget conf base (get_father fam) in
-           let moth = pget conf base (get_mother fam) in
+           let fam = Gwdb.foi base ifam in
+           let fath = pget conf base (Gwdb.get_father fam) in
+           let moth = pget conf base (Gwdb.get_mother fam) in
            Output.print_string conf "<tt>";
            if conf.wizard then
              begin

@@ -337,7 +337,6 @@ and lazy_get_n_mk_person conf base i =
   Tpat (function "iper" -> iper | s -> unbox_pat (Lazy.force lp) s)
 
 and ppget conf base p =
-  let open Geneweb in
   let open Config in
   let open Def in
   let open Gwdb in
