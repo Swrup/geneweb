@@ -8,16 +8,24 @@ type 'a env = (string * 'a) list
 
 val eval_transl : config -> bool -> string -> string -> string
 
-type ('a, 'b) interp_fun =
-  { eval_var : 'a env -> 'b -> loc -> string list -> 'b expr_val;
-    eval_transl : 'a env -> bool -> string -> string -> string;
-    eval_predefined_apply : 'a env -> string -> 'b expr_val list -> string;
-    get_vother : 'a -> 'b vother option;
-    set_vother : 'b vother -> 'a;
-    print_foreach :
-      ('a env -> 'b -> ast -> unit) -> ('a env -> 'b -> ast -> string) ->
-        'a env -> 'b -> loc -> string -> string list -> ast list list ->
-        ast list -> unit }
+type ('a, 'b) interp_fun = {
+  eval_var : 'a env -> 'b -> loc -> string list -> 'b expr_val;
+  eval_transl : 'a env -> bool -> string -> string -> string;
+  eval_predefined_apply : 'a env -> string -> 'b expr_val list -> string;
+  get_vother : 'a -> 'b vother option;
+  set_vother : 'b vother -> 'a;
+  print_foreach :
+    ('a env -> 'b -> ast -> unit) ->
+    ('a env -> 'b -> ast -> string) ->
+    'a env ->
+    'b ->
+    loc ->
+    string ->
+    string list ->
+    ast list list ->
+    ast list ->
+    unit;
+}
 
 val interp_ast :
   config -> ('a, 'b) interp_fun -> 'a env -> 'b -> ast list -> unit
@@ -26,10 +34,11 @@ val interp_ast :
 
 val input_templ : config -> string -> ast list option
 
-(** Evaluates and prints content of {i cpr} template. If template wasn't found prints basic copyrigth HTML structure. *)
 val print_copyright : config -> unit
+(** Evaluates and prints content of {i cpr} template. If template wasn't found prints basic copyrigth HTML structure. *)
 
-(** Calls [print_copyright] with config where variable {i with_logo} is set to "yes" *)
 val print_copyright_with_logo : config -> unit
+(** Calls [print_copyright] with config where variable {i with_logo} is set to "yes" *)
+
 val include_hed_trl : config -> string -> unit
 val copy_from_templ : config -> string env -> in_channel -> unit

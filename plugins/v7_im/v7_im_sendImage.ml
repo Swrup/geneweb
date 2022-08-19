@@ -6,23 +6,23 @@ open Util
 
 type image_type = JPEG | GIF | PNG
 
-let image_types = [JPEG; GIF; PNG]
+let image_types = [ JPEG; GIF; PNG ]
 
-let extension_of_type =
-  function
-    JPEG -> ".jpg"
+let extension_of_type = function
+  | JPEG -> ".jpg"
   | GIF -> ".gif"
   | PNG -> ".png"
 
-let raise_modErr s =
-  raise @@ Update.ModErr (Update.UERR s)
+let raise_modErr s = raise @@ Update.ModErr (Update.UERR s)
 
 let incorrect conf =
   Hutil.incorrect_request conf;
   raise_modErr (__FILE__ ^ " " ^ string_of_int __LINE__)
 
 let incorrect_content_type conf base p s =
-  let title _ = Output.print_string conf (Utf8.capitalize_fst (transl conf "error")) in
+  let title _ =
+    Output.print_string conf (Utf8.capitalize_fst (transl conf "error"))
+  in
   Hutil.rheader conf title;
   Hutil.print_link_to_welcome conf true;
   Output.print_string conf "<p>\n";
@@ -39,7 +39,9 @@ let incorrect_content_type conf base p s =
   raise_modErr (__FILE__ ^ " " ^ string_of_int __LINE__)
 
 let error_too_big_image conf base p len max_len =
-  let title _ = Output.print_string conf (Utf8.capitalize_fst (transl conf "error")) in
+  let title _ =
+    Output.print_string conf (Utf8.capitalize_fst (transl conf "error"))
+  in
   Hutil.rheader conf title;
   Hutil.print_link_to_welcome conf true;
   Output.print_string conf "<p><em style=\"font-size:smaller\">";
@@ -60,18 +62,15 @@ let raw_get conf key =
 
 (* print delete image link *)
 let print_link_delete_image conf base p =
-  if Util.has_image conf base p then
-    begin
-      Output.print_string conf "<p>\n";
-      begin
-        Output.printf conf "<a href=\"%sm=DEL_IMAGE&i=%s\">" (commd conf)
-          (string_of_iper (get_iper p));
-        Output.printf conf "%s %s" (Utf8.capitalize_fst (transl conf "delete"))
-          (transl_nth conf "image/images" 0);
-        Output.print_string conf "</a>"
-      end;
-      Output.print_string conf "</p>\n"
-    end
+  if Util.has_image conf base p then (
+    Output.print_string conf "<p>\n";
+    Output.printf conf "<a href=\"%sm=DEL_IMAGE&i=%s\">" (commd conf)
+      (string_of_iper (get_iper p));
+    Output.printf conf "%s %s"
+      (Utf8.capitalize_fst (transl conf "delete"))
+      (transl_nth conf "image/images" 0);
+    Output.print_string conf "</a>";
+    Output.print_string conf "</p>\n")
 
 (* Send image form *)
 
@@ -109,20 +108,23 @@ let print_send_image conf base p =
     (string_of_iper (get_iper p));
   Output.printf conf "<input type=\"hidden\" name=\"digest\" value=\"%s\">\n"
     digest;
-  Output.printf conf "%s%s\n" (Utf8.capitalize_fst (transl conf "file")) (Util.transl conf ":");
-  Output.print_string conf "<input \
-type=\"file\" class=\"form-control\" name=\"file\" size=\"50\" maxlength=\"250\" accept=\"image/*\">\n";
+  Output.printf conf "%s%s\n"
+    (Utf8.capitalize_fst (transl conf "file"))
+    (Util.transl conf ":");
+  Output.print_string conf
+    "<input type=\"file\" class=\"form-control\" name=\"file\" size=\"50\" \
+     maxlength=\"250\" accept=\"image/*\">\n";
   Output.print_string conf "</p>\n";
-  begin match p_getint conf.base_env "max_images_size" with
-    Some len ->
+  (match p_getint conf.base_env "max_images_size" with
+  | Some len ->
       Output.print_string conf "<p>\n";
       Output.printf conf "(maximum authorized size = %d bytes)\n" len;
       Output.print_string conf "</p>\n"
-  | None -> ()
-  end;
+  | None -> ());
   Output.print_string conf
     "<button type=\"submit\" class=\"btn btn-secondary btn-lg mt-2\">\n";
-  Output.print_string conf (Utf8.capitalize_fst (transl_nth conf "validate/delete" 0));
+  Output.print_string conf
+    (Utf8.capitalize_fst (transl_nth conf "validate/delete" 0));
   Output.print_string conf "</button>\n";
   Output.print_string conf "</form>\n";
   print_link_delete_image conf base p;
@@ -130,7 +132,7 @@ type=\"file\" class=\"form-control\" name=\"file\" size=\"50\" maxlength=\"250\"
 
 let print conf base =
   match p_getenv conf.env "i" with
-    Some ip ->
+  | Some ip ->
       let p = poi base (iper_of_string ip) in
       let fn = p_first_name base p in
       let sn = p_surname base p in
@@ -152,39 +154,40 @@ let print_delete_image conf base p =
       let sn = p_surname base p in
       let occ =
         (* if fn = "?" || sn = "?" then Adef.int_of_iper (get_iper p)
-         * else  *)get_occ p
+         * else *)
+        get_occ p
       in
-      Output.print_string conf ": "; Output.printf conf "%s.%d %s" fn occ sn
+      Output.print_string conf ": ";
+      Output.printf conf "%s.%d %s" fn occ sn
   in
   Hutil.header conf title;
   Output.printf conf "<form method=\"post\" action=\"%s\">" conf.command;
   Util.hidden_env conf;
   Output.printf conf
-    "<input type=\"hidden\" name=\"m\" value=\"DEL_IMAGE_OK\">\
-     <input type=\"hidden\" name=\"i\" value=\"%s\">\
-     <p><button type=\"submit\" class=\"btn btn-secondary btn-lg\">%s</button></p>\
-     </form>"
+    "<input type=\"hidden\" name=\"m\" value=\"DEL_IMAGE_OK\"><input \
+     type=\"hidden\" name=\"i\" value=\"%s\"><p><button type=\"submit\" \
+     class=\"btn btn-secondary btn-lg\">%s</button></p></form>"
     (string_of_iper (get_iper p))
     (Utf8.capitalize_fst (transl_nth conf "validate/delete" 0));
   Hutil.trailer conf
 
 let print_del conf base =
   match p_getenv conf.env "i" with
-    Some ip ->
+  | Some ip -> (
       let p = poi base (iper_of_string ip) in
       if sou base (get_image p) <> "" then Hutil.incorrect_request conf
       else
-        begin match auto_image_file conf base p with
-          Some _ -> print_delete_image conf base p
-        | _ -> Hutil.incorrect_request conf
-        end
+        match auto_image_file conf base p with
+        | Some _ -> print_delete_image conf base p
+        | _ -> Hutil.incorrect_request conf)
   | _ -> Hutil.incorrect_request conf
 
 (* Send image form validated *)
 
 let print_sent conf base p =
   let title _ =
-    Output.print_string conf (Utf8.capitalize_fst (transl conf "image received"))
+    Output.print_string conf
+      (Utf8.capitalize_fst (transl conf "image received"))
   in
   Hutil.header conf title;
   Output.print_string conf "<ul>\n";
@@ -196,33 +199,33 @@ let print_sent conf base p =
 
 let write_file fname content =
   let oc = Secure.open_out_bin fname in
-  output_string oc content; flush oc; close_out oc
+  output_string oc content;
+  flush oc;
+  close_out oc
 
 (* Move fname to old_dir if it exists with some extension.
    Returns the number of moved files *)
 let move_file_to_old conf fname bfname =
   List.fold_left
     (fun cnt typ ->
-       let ext = extension_of_type typ in
-       let new_file = fname ^ ext in
-       if Sys.file_exists new_file then
-         let old_dir =
-           Filename.concat (Util.base_path ["images"] conf.bname) "old"
-         in
-         let old_file = Filename.concat old_dir bfname ^ ext in
-         Mutil.rm old_file ;
-         Mutil.mkdir_p old_dir ;
-         begin try Unix.rename new_file old_file with
-           Unix.Unix_error (_, _, _) -> ()
-         end;
-         cnt + 1
-       else cnt)
+      let ext = extension_of_type typ in
+      let new_file = fname ^ ext in
+      if Sys.file_exists new_file then (
+        let old_dir =
+          Filename.concat (Util.base_path [ "images" ] conf.bname) "old"
+        in
+        let old_file = Filename.concat old_dir bfname ^ ext in
+        Mutil.rm old_file;
+        Mutil.mkdir_p old_dir;
+        (try Unix.rename new_file old_file
+         with Unix.Unix_error (_, _, _) -> ());
+        cnt + 1)
+      else cnt)
     0 image_types
 
 let normal_image_type s =
   if String.length s > 10 && Char.code s.[0] = 0xff && Char.code s.[1] = 0xd8
-  then
-    Some JPEG
+  then Some JPEG
   else if String.length s > 4 && String.sub s 0 4 = "\137PNG" then Some PNG
   else if String.length s > 4 && String.sub s 0 4 = "GIF8" then Some GIF
   else None
@@ -240,61 +243,66 @@ let string_search s v =
 
 let image_type s =
   match normal_image_type s with
-    Some t -> Some (t, s)
-  | None ->
+  | Some t -> Some (t, s)
+  | None -> (
       match string_search s "JFIF" with
-        Some i when i > 6 ->
+      | Some i when i > 6 ->
           let s = String.sub s (i - 6) (String.length s - i + 6) in
           Some (JPEG, s)
-      | _ ->
+      | _ -> (
           match string_search s "\137PNG" with
-            Some i ->
-              let s = String.sub s i (String.length s - i) in Some (PNG, s)
-          | _ ->
+          | Some i ->
+              let s = String.sub s i (String.length s - i) in
+              Some (PNG, s)
+          | _ -> (
               match string_search s "GIF8" with
-                Some i ->
+              | Some i ->
                   let s = String.sub s i (String.length s - i) in
                   Some (GIF, s)
-              | None -> None
+              | None -> None)))
 
 let dump_bad_image conf s =
   match p_getenv conf.base_env "dump_bad_images" with
-    Some "yes" ->
-      begin try
+  | Some "yes" -> (
+      try
         let oc = Secure.open_out_bin "bad-image" in
-        output_string oc s; flush oc; close_out oc
-      with Sys_error _ -> ()
-      end
+        output_string oc s;
+        flush oc;
+        close_out oc
+      with Sys_error _ -> ())
   | _ -> ()
 
 let effective_send_ok conf base p file =
   let strm = Stream.of_string file in
-  let (request, content) = Wserver.get_request_and_content strm in
+  let request, content = Wserver.get_request_and_content strm in
   let content =
     let s =
       let rec loop len (strm__ : _ Stream.t) =
         match Stream.peek strm__ with
-          Some x -> Stream.junk strm__; loop (Buff.store len x) strm
+        | Some x ->
+            Stream.junk strm__;
+            loop (Buff.store len x) strm
         | _ -> Buff.get len
       in
       loop 0 strm
     in
     content ^ s
   in
-  let (typ, content) =
+  let typ, content =
     match image_type content with
-      None ->
+    | None ->
         let ct = Mutil.extract_param "content-type: " '\n' request in
-        dump_bad_image conf content; incorrect_content_type conf base p ct
-    | Some (typ, content) ->
+        dump_bad_image conf content;
+        incorrect_content_type conf base p ct
+    | Some (typ, content) -> (
         match p_getint conf.base_env "max_images_size" with
-          Some len when String.length content > len ->
+        | Some len when String.length content > len ->
             error_too_big_image conf base p (String.length content) len
-        | _ -> typ, content
+        | _ -> (typ, content))
   in
   let bfname = default_image_name base p in
   let bfdir =
-    let bfdir = Util.base_path ["images"] conf.bname in
+    let bfdir = Util.base_path [ "images" ] conf.bname in
     if Sys.file_exists bfdir then bfdir
     else
       let d = Filename.concat (Secure.base_dir ()) "images" in
@@ -309,7 +317,8 @@ let effective_send_ok conf base p file =
   let changed =
     U_Send_image (Util.string_gen_person base (gen_person_of_person p))
   in
-  History.record conf base changed "si"; print_sent conf base p
+  History.record conf base changed "si";
+  print_sent conf base p
 
 let print_send_ok conf base =
   let ip =
@@ -319,7 +328,8 @@ let print_send_ok conf base =
   let p = poi base ip in
   let digest = Update.digest_person (UpdateInd.string_person_of base p) in
   if digest = raw_get conf "digest" then
-    let file = raw_get conf "file" in effective_send_ok conf base p file
+    let file = raw_get conf "file" in
+    effective_send_ok conf base p file
   else Update.error_digest conf
 
 (* Delete image form validated *)
@@ -334,16 +344,17 @@ let print_deleted conf base p =
 
 let effective_delete_ok conf base p =
   let bfname = default_image_name base p in
-  let fname = Filename.concat (Util.base_path ["images"] conf.bname) bfname in
+  let fname = Filename.concat (Util.base_path [ "images" ] conf.bname) bfname in
   if move_file_to_old conf fname bfname = 0 then incorrect conf;
   let changed =
     U_Delete_image (Util.string_gen_person base (gen_person_of_person p))
   in
-  History.record conf base changed "di"; print_deleted conf base p
+  History.record conf base changed "di";
+  print_deleted conf base p
 
 let print_del_ok conf base =
   match p_getenv conf.env "i" with
-    Some ip ->
-    let p = poi base (iper_of_string ip) in
-    effective_delete_ok conf base p
+  | Some ip ->
+      let p = poi base (iper_of_string ip) in
+      effective_delete_ok conf base p
   | None -> incorrect conf

@@ -32,25 +32,27 @@ open Config
    __SHORT_TOC__ : short summary (unnumbered)
    __NOTOC__ : no (automatic) numbered summary *)
 
-type wiki_info =
-  { wi_mode : string;
-    wi_file_path : string -> string;
-    wi_person_exists : string * string * int -> bool;
-    wi_always_show_link : bool }
+type wiki_info = {
+  wi_mode : string;
+  wi_file_path : string -> string;
+  wi_person_exists : string * string * int -> bool;
+  wi_always_show_link : bool;
+}
 
 val syntax_links : config -> wiki_info -> string -> string
 
-(** Parses a whole TLSW text to a list of strings *)
 val html_of_tlsw : config -> string -> string list
+(** Parses a whole TLSW text to a list of strings *)
 
-(** HTML displaying a table of content for a TLSW file *)
 val html_with_summary_of_tlsw :
   config -> wiki_info -> (bool * string * string) option -> string -> string
+(** HTML displaying a table of content for a TLSW file *)
 
+val extract_sub_part : string -> int -> string list
 (** [extract_sub_part tlsw i]
     Extracts the `i`th first TLSW sections of `tlsw` *)
-val extract_sub_part : string -> int -> string list
 
+val split_title_and_text : string -> (string * string) list * string
 (**
    The argument is expected to have the form "KEY=value\n"...
    This function calculates each Key/value pair and puts it in a list;
@@ -59,30 +61,39 @@ val extract_sub_part : string -> int -> string list
    not start with '=' nor contains '<' nor '[', in which case it is choosen as a
    first line. Otherwise, the title is the empty string.
 *)
-val split_title_and_text : string -> (string * string) list * string
 
-(** Prints an exctracted sub part *)
 val print_sub_part :
-  config -> wiki_info -> bool -> string -> string -> int -> string list ->
-  unit
+  config -> wiki_info -> bool -> string -> string -> int -> string list -> unit
+(** Prints an exctracted sub part *)
 
-(** Prints an editable part *)
 val print_mod_view_page :
-  config -> bool -> string -> string -> (bool -> unit) ->
-    (string * string) list -> string -> unit
+  config ->
+  bool ->
+  string ->
+  string ->
+  (bool -> unit) ->
+  (string * string) list ->
+  string ->
+  unit
+(** Prints an editable part *)
 
-(** Commits the changes of a page *)
 val print_mod_ok :
-  config -> wiki_info -> (string -> string option) ->
-    (string option -> string) ->
-    (string -> (string * string) list * string) ->
-    (string -> string -> unit) -> (string -> string) -> bool -> unit
+  config ->
+  wiki_info ->
+  (string -> string option) ->
+  (string option -> string) ->
+  (string -> (string * string) list * string) ->
+  (string -> string -> unit) ->
+  (string -> string) ->
+  bool ->
+  unit
+(** Commits the changes of a page *)
 
 (*S: shouldn't the following functions be defined elsewhere? *)
 
+val notes_aliases : config -> (string * string) list
 (** Reads the notes alias file (conf.base_env.notes_alias_file or base_path/notes.alias).
     File format is "KEY value\n...", returns the list of (KEY,value) *)
-val notes_aliases : config -> (string * string) list
 
-(** Given an alias list, finds the corresponding alias for a given string *)
 val map_notes : (string * string) list -> string -> string
+(** Given an alias list, finds the corresponding alias for a given string *)

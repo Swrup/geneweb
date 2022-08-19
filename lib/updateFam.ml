@@ -7,35 +7,36 @@ open Gwdb
 open TemplAst
 open Util
 
-type create_info =
-  Update.create_info =
-    { ci_birth_date : date option;
-      ci_birth_place : string;
-      ci_death : death;
-      ci_death_date : date option;
-      ci_death_place : string;
-      ci_occupation : string;
-      ci_public : bool }
+type create_info = Update.create_info = {
+  ci_birth_date : date option;
+  ci_birth_place : string;
+  ci_death : death;
+  ci_death_date : date option;
+  ci_death_place : string;
+  ci_occupation : string;
+  ci_public : bool;
+}
 
 let default_source conf =
-  match p_getenv conf.env "dsrc" with
-    Some s -> s
-  | None -> ""
+  match p_getenv conf.env "dsrc" with Some s -> s | None -> ""
 
 let person_key base ip =
   let p = poi base ip in
   let first_name = sou base (get_first_name p) in
   let surname = sou base (get_surname p) in
   let occ =
-    if first_name = "?" || surname = "?" then int_of_string @@ Gwdb.string_of_iper ip (* FIXME *)
+    if first_name = "?" || surname = "?" then
+      int_of_string @@ Gwdb.string_of_iper ip (* FIXME *)
     else get_occ p
   in
-  first_name, surname, occ, Update.Link, ""
+  (first_name, surname, occ, Update.Link, "")
 
 let string_family_of conf base ifam =
   let fam = foi base ifam in
   let sfam =
-    Futil.map_family_ps (person_key base) (fun f -> f) (sou base) (gen_family_of_family fam)
+    Futil.map_family_ps (person_key base)
+      (fun f -> f)
+      (sou base) (gen_family_of_family fam)
   in
   let scpl =
     Futil.map_couple_p conf.multi_parents (person_key base)
@@ -44,22 +45,19 @@ let string_family_of conf base ifam =
   let sdes =
     Futil.map_descend_p (person_key base) (gen_descend_of_family fam)
   in
-  sfam, scpl, sdes
+  (sfam, scpl, sdes)
 
 (* Interpretation of template file 'updfam.txt' *)
 
 type 'a env =
-    Vstring of string
+  | Vstring of string
   | Vint of int
   | Vother of 'a
   | Vbool of bool
   | Vnone
 
 let get_env v env = try List.assoc v env with Not_found -> Vnone
-let get_vother =
-  function
-    Vother x -> Some x
-  | _ -> None
+let get_vother = function Vother x -> Some x | _ -> None
 let set_vother x = Vother x
 
 let extract_var sini s =
@@ -72,174 +70,177 @@ let bool_val x = VVbool x
 let str_val x = VVstring x
 
 module ExtOption = struct
-  let bind o f = match o with
-    | Some v -> f v
-    | None   -> None
+  let bind o f = match o with Some v -> f v | None -> None
+
   let get : 'a option -> 'a = function
     | Some v -> v
-    | None   -> raise (Invalid_argument "option is None")
+    | None -> raise (Invalid_argument "option is None")
 end
 
 let eval_witness_kind = function
-  | Witness_GodParent        -> str_val "godp"
-  | Witness_CivilOfficer     -> str_val "offi"
+  | Witness_GodParent -> str_val "godp"
+  | Witness_CivilOfficer -> str_val "offi"
   | Witness_ReligiousOfficer -> str_val "reli"
-  | Witness_Informant        -> str_val "info"
-  | Witness_Attending        -> str_val "atte"
-  | Witness_Mentioned        -> str_val "ment"
-  | Witness_Other            -> str_val "othe"
-  | Witness                  -> str_val ""
+  | Witness_Informant -> str_val "info"
+  | Witness_Attending -> str_val "atte"
+  | Witness_Mentioned -> str_val "ment"
+  | Witness_Other -> str_val "othe"
+  | Witness -> str_val ""
 
-let family_events_opt env fam = match get_env "cnt" env with
+let family_events_opt env fam =
+  match get_env "cnt" env with
   | Vint i -> List.nth_opt fam.fevents (i - 1)
-  | _      -> None
+  | _ -> None
 
-let witness_person_of_event_opt env e = match get_env "wcnt" env with
-  | Vint i when (i - 1) >= 0 && (i - 1) < Array.length e.efam_witnesses ->
-     Some (fst e.efam_witnesses.(i - 1))
-  | Vint i when (i - 1) >= 0 && (i - 1) < 2 && Array.length e.efam_witnesses < 2 ->
-     Some ("", "", 0, Update.Create (Neuter, None), "")
-  | _      -> None
+let witness_person_of_event_opt env e =
+  match get_env "wcnt" env with
+  | Vint i when i - 1 >= 0 && i - 1 < Array.length e.efam_witnesses ->
+      Some (fst e.efam_witnesses.(i - 1))
+  | Vint i when i - 1 >= 0 && i - 1 < 2 && Array.length e.efam_witnesses < 2 ->
+      Some ("", "", 0, Update.Create (Neuter, None), "")
+  | _ -> None
 
 let ( >>= ) x f = ExtOption.bind x f
 
 let rec eval_fwitness env fam sl =
   let fwitness_opt =
     family_events_opt env fam >>= fun e ->
-    witness_person_of_event_opt env e >>= fun p ->
-    eval_key_opt p sl
+    witness_person_of_event_opt env e >>= fun p -> eval_key_opt p sl
   in
-  match fwitness_opt with
-  | Some fw -> fw
-  | None    -> raise Not_found
+  match fwitness_opt with Some fw -> fw | None -> raise Not_found
 
 (* TODO : function logic around array length is not clear  *)
 and eval_child env des sl =
   let k =
     match get_env "cnt" env with
     | Vint i ->
-       let i = i - 1 in
-       if i >= 0 && i < Array.length des.children then des.children.(i)
-       else if i >= 0 && i < 1 && Array.length des.children = 0 then
-         "", "", 0, Update.Create (Neuter, None), ""
-       else raise Not_found
+        let i = i - 1 in
+        if i >= 0 && i < Array.length des.children then des.children.(i)
+        else if i >= 0 && i < 1 && Array.length des.children = 0 then
+          ("", "", 0, Update.Create (Neuter, None), "")
+        else raise Not_found
     | _ -> raise Not_found
   in
   eval_key k sl
 
 and eval_var conf base env (fam, cpl, des) _loc sl =
-  try eval_special_var conf base sl with
-    Not_found -> eval_simple_var conf base env (fam, cpl, des) sl
+  try eval_special_var conf base sl
+  with Not_found -> eval_simple_var conf base env (fam, cpl, des) sl
 
 and eval_bvar conf v =
   match List.assoc_opt v conf.base_env with
   | Some v -> VVstring v
-  | None   -> VVstring ""
+  | None -> VVstring ""
 
-and eval_divorce fam = match fam.divorce with
-  | Divorced _  -> str_val "divorced"
+and eval_divorce fam =
+  match fam.divorce with
+  | Divorced _ -> str_val "divorced"
   | NotDivorced -> str_val "not_divorced"
-  | Separated   -> str_val "separated"
+  | Separated -> str_val "separated"
 
 (* TODO : rewrite, second case with None passed as an argument looks odd *)
-and eval_divorce' fam s = match fam.divorce with
+and eval_divorce' fam s =
+  match fam.divorce with
   | Divorced d -> eval_date_var (Adef.od_of_cdate d) s
   | _ -> eval_date_var None s
 
-and eval_is_first env = match get_env "first" env with
-  | Vbool x -> bool_val x
-  | _       -> raise Not_found
+and eval_is_first env =
+  match get_env "first" env with Vbool x -> bool_val x | _ -> raise Not_found
 
-and eval_is_last env = match get_env "last" env with
-  | Vbool x -> bool_val x
-  | _       -> raise Not_found
+and eval_is_last env =
+  match get_env "last" env with Vbool x -> bool_val x | _ -> raise Not_found
 
 (* TODO : feels like it could be simpler *)
-and eval_parent conf env cpl sl = match get_env "cnt" env with
+and eval_parent conf env cpl sl =
+  match get_env "cnt" env with
   | Vint i ->
-     let arr = Gutil.parent_array cpl in
-     let i = i - 1 in
-     let k = if i >= 0 && i < Array.length arr then arr.(i)
-             else if i >= 0 && i < 1 && Array.length arr = 0 then
-               "", "", 0, Update.Create (Neuter, None), ""
-             else raise Not_found
-     in eval_parent' conf env k sl
+      let arr = Gutil.parent_array cpl in
+      let i = i - 1 in
+      let k =
+        if i >= 0 && i < Array.length arr then arr.(i)
+        else if i >= 0 && i < 1 && Array.length arr = 0 then
+          ("", "", 0, Update.Create (Neuter, None), "")
+        else raise Not_found
+      in
+      eval_parent' conf env k sl
   | _ -> raise Not_found
 
 (* TODO : more array length logic *)
-and eval_witness env fam sl = match get_env "cnt" env with
+and eval_witness env fam sl =
+  match get_env "cnt" env with
   | Vint i ->
-     let i = i - 1 in
-     let k = if i >= 0 && i < Array.length fam.witnesses then fam.witnesses.(i)
-             else if i >= 0 && i < 2 && Array.length fam.witnesses < 2 then
-               "", "", 0, Update.Create (Neuter, None), ""
-             else raise Not_found
-     in eval_key k sl
+      let i = i - 1 in
+      let k =
+        if i >= 0 && i < Array.length fam.witnesses then fam.witnesses.(i)
+        else if i >= 0 && i < 2 && Array.length fam.witnesses < 2 then
+          ("", "", 0, Update.Create (Neuter, None), "")
+        else raise Not_found
+      in
+      eval_key k sl
   | _ -> raise Not_found
 
-
 (* TODO : rewrite, looks bad *)
-and eval_event_str conf base env fam = match get_env "cnt" env with
-  | Vint i ->
-     begin try
-         let fam = foi base fam.fam_index in
-         let e = List.nth (get_fevents fam) (i - 1) in
-         let name =
-           Utf8.capitalize_fst (Util.string_of_fevent_name conf base e.efam_name)
-         in
-         let date =
-           match Adef.od_of_cdate e.efam_date with
-             Some d -> DateDisplay.string_of_date conf d
-           | None -> ""
-         in
-         let place = Util.string_of_place conf (sou base e.efam_place) in
-         let note = sou base e.efam_note in
-         let src = sou base e.efam_src in
-         let wit =
-           List.fold_right
-             (fun (w, _) accu ->
-               (transl_nth conf "witness/witnesses" 0 ^ ": " ^
-                  Util.person_text conf base (poi base w)) ::
-                 accu)
-             (Array.to_list e.efam_witnesses) []
-         in
-         let s = String.concat ", " [name; date; place; note; src] in
-         let sw = String.concat ", " wit in str_val (s ^ ", " ^ sw)
-       with Failure _ -> str_val ""
-     end
+and eval_event_str conf base env fam =
+  match get_env "cnt" env with
+  | Vint i -> (
+      try
+        let fam = foi base fam.fam_index in
+        let e = List.nth (get_fevents fam) (i - 1) in
+        let name =
+          Utf8.capitalize_fst (Util.string_of_fevent_name conf base e.efam_name)
+        in
+        let date =
+          match Adef.od_of_cdate e.efam_date with
+          | Some d -> DateDisplay.string_of_date conf d
+          | None -> ""
+        in
+        let place = Util.string_of_place conf (sou base e.efam_place) in
+        let note = sou base e.efam_note in
+        let src = sou base e.efam_src in
+        let wit =
+          List.fold_right
+            (fun (w, _) accu ->
+              (transl_nth conf "witness/witnesses" 0
+              ^ ": "
+              ^ Util.person_text conf base (poi base w))
+              :: accu)
+            (Array.to_list e.efam_witnesses)
+            []
+        in
+        let s = String.concat ", " [ name; date; place; note; src ] in
+        let sw = String.concat ", " wit in
+        str_val (s ^ ", " ^ sw)
+      with Failure _ -> str_val "")
   | _ -> str_val ""
 
 and eval_has_fwitness env fam =
   let has_fwitness_opt =
     family_events_opt env fam >>= fun e ->
-    Some (bool_val (e.efam_witnesses <> [| |]))
-  in try ExtOption.get has_fwitness_opt
-     with Invalid_argument _ -> raise Not_found
+    Some (bool_val (e.efam_witnesses <> [||]))
+  in
+  try ExtOption.get has_fwitness_opt
+  with Invalid_argument _ -> raise Not_found
 
 (* TODO : rewrite, looks bad *)
-and eval_fwitness_kind env fam = match get_env "cnt" env with
-  | Vint i ->
-     let e =
-       try Some (List.nth fam.fevents (i - 1)) with Failure _ -> None
-     in
-     begin match e with
-       Some e ->
-        begin match get_env "wcnt" env with
-          Vint i ->
-           let i = i - 1 in
-           if i >= 0 && i < Array.length e.efam_witnesses then
-             eval_witness_kind (snd e.efam_witnesses.(i))
-           else if
-             i >= 0 && i < 2 && Array.length e.efam_witnesses < 2
-           then
-             str_val ""
-           else raise Not_found
-        | _ -> raise Not_found
-        end
-     | None -> raise Not_found
-     end
+and eval_fwitness_kind env fam =
+  match get_env "cnt" env with
+  | Vint i -> (
+      let e =
+        try Some (List.nth fam.fevents (i - 1)) with Failure _ -> None
+      in
+      match e with
+      | Some e -> (
+          match get_env "wcnt" env with
+          | Vint i ->
+              let i = i - 1 in
+              if i >= 0 && i < Array.length e.efam_witnesses then
+                eval_witness_kind (snd e.efam_witnesses.(i))
+              else if i >= 0 && i < 2 && Array.length e.efam_witnesses < 2 then
+                str_val ""
+              else raise Not_found
+          | _ -> raise Not_found)
+      | None -> raise Not_found)
   | _ -> raise Not_found
-
 
 (* TODO : rewrite, looks bad + find a better name *)
 and eval_default_var conf s =
@@ -256,148 +257,129 @@ and eval_default_var conf s =
     else raise Not_found
 
 and eval_event_date env fam s =
-  let od = family_events_opt env fam >>= fun e ->
-           Adef.od_of_cdate e.efam_date
-  in eval_date_var od s
+  let od =
+    family_events_opt env fam >>= fun e -> Adef.od_of_cdate e.efam_date
+  in
+  eval_date_var od s
 
-and eval_simple_var conf base env (fam, cpl, des) =
-  function
-  | ["bvar"; v]        -> eval_bvar conf v
-  | "child" :: sl      -> eval_child env des sl
-  | ["cnt"]            -> eval_int_env "cnt" env
-  | ["comment"]        -> str_val (Util.escape_html fam.comment)
-  | ["digest"]         -> eval_string_env "digest" env
-  | ["divorce"]        -> eval_divorce fam
-  | ["divorce"; s]     -> eval_divorce' fam s
-  | "father" :: sl     -> eval_key (Gutil.father cpl) sl
-  | ["fsources"]       -> str_val (Util.escape_html fam.fsources)
-  | ["is_first"]       -> eval_is_first env
-  | ["is_last"]        -> eval_is_last env
-  | ["marriage"; s]    -> eval_date_var (Adef.od_of_cdate fam.marriage) s
-  | ["marriage_place"] -> str_val (Util.escape_html fam.marriage_place)
-  | ["marriage_note"]  -> str_val (Util.escape_html fam.marriage_note)
-  | ["marriage_src"]   -> str_val (Util.escape_html fam.marriage_src)
-  | ["mrel"]           -> str_val (eval_relation_kind fam.relation)
-  | ["nb_fevents"]     -> str_val (string_of_int (List.length fam.fevents))
-  | ["origin_file"]    -> str_val (Util.escape_html fam.origin_file)
-  | "parent" :: sl     -> eval_parent conf env cpl sl
-  | ["wcnt"]           -> eval_int_env "wcnt" env
-  | "witness" :: sl    -> eval_witness env fam sl
-  | ["has_fevents"]    -> bool_val (fam.fevents <> [])
-  | "event" :: sl      ->
-     let e = family_events_opt env fam in
-     eval_event_var e sl
-  | ["event_date"; s]  -> eval_event_date env fam s
-  | ["event_str"]      -> eval_event_str conf base env fam
-  | ["has_fwitness"]   -> eval_has_fwitness env fam
-  | "fwitness" :: sl   -> eval_fwitness env fam sl
-  | ["fwitness_kind"]  -> eval_fwitness_kind env fam
-  | [s]                -> eval_default_var conf s
+and eval_simple_var conf base env (fam, cpl, des) = function
+  | [ "bvar"; v ] -> eval_bvar conf v
+  | "child" :: sl -> eval_child env des sl
+  | [ "cnt" ] -> eval_int_env "cnt" env
+  | [ "comment" ] -> str_val (Util.escape_html fam.comment)
+  | [ "digest" ] -> eval_string_env "digest" env
+  | [ "divorce" ] -> eval_divorce fam
+  | [ "divorce"; s ] -> eval_divorce' fam s
+  | "father" :: sl -> eval_key (Gutil.father cpl) sl
+  | [ "fsources" ] -> str_val (Util.escape_html fam.fsources)
+  | [ "is_first" ] -> eval_is_first env
+  | [ "is_last" ] -> eval_is_last env
+  | [ "marriage"; s ] -> eval_date_var (Adef.od_of_cdate fam.marriage) s
+  | [ "marriage_place" ] -> str_val (Util.escape_html fam.marriage_place)
+  | [ "marriage_note" ] -> str_val (Util.escape_html fam.marriage_note)
+  | [ "marriage_src" ] -> str_val (Util.escape_html fam.marriage_src)
+  | [ "mrel" ] -> str_val (eval_relation_kind fam.relation)
+  | [ "nb_fevents" ] -> str_val (string_of_int (List.length fam.fevents))
+  | [ "origin_file" ] -> str_val (Util.escape_html fam.origin_file)
+  | "parent" :: sl -> eval_parent conf env cpl sl
+  | [ "wcnt" ] -> eval_int_env "wcnt" env
+  | "witness" :: sl -> eval_witness env fam sl
+  | [ "has_fevents" ] -> bool_val (fam.fevents <> [])
+  | "event" :: sl ->
+      let e = family_events_opt env fam in
+      eval_event_var e sl
+  | [ "event_date"; s ] -> eval_event_date env fam s
+  | [ "event_str" ] -> eval_event_str conf base env fam
+  | [ "has_fwitness" ] -> eval_has_fwitness env fam
+  | "fwitness" :: sl -> eval_fwitness env fam sl
+  | [ "fwitness_kind" ] -> eval_fwitness_kind env fam
+  | [ s ] -> eval_default_var conf s
   | _ -> raise Not_found
 
 and eval_date_var od s = str_val (eval_date_var_aux od s)
 
 (* TODO : rewrite, looks bad *)
-and eval_date_var_aux od =
-  function
-    "calendar" ->
-      begin match od with
-        Some (Dgreg (_, Dgregorian)) -> "gregorian"
+and eval_date_var_aux od = function
+  | "calendar" -> (
+      match od with
+      | Some (Dgreg (_, Dgregorian)) -> "gregorian"
       | Some (Dgreg (_, Djulian)) -> "julian"
       | Some (Dgreg (_, Dfrench)) -> "french"
       | Some (Dgreg (_, Dhebrew)) -> "hebrew"
-      | _ -> ""
-      end
-  | "day" ->
-      begin match eval_date_field od with
-        Some d -> if d.day = 0 then "" else string_of_int d.day
-      | None -> ""
-      end
-  | "month" ->
-      begin match eval_date_field od with
-        Some d ->
+      | _ -> "")
+  | "day" -> (
+      match eval_date_field od with
+      | Some d -> if d.day = 0 then "" else string_of_int d.day
+      | None -> "")
+  | "month" -> (
+      match eval_date_field od with
+      | Some d -> (
           if d.month = 0 then ""
           else
-            begin match od with
-              Some (Dgreg (_, Dfrench)) -> short_f_month d.month
-            | _ -> string_of_int d.month
-            end
-      | None -> ""
-      end
-  | "orday" ->
-      begin match eval_date_field od with
-        Some d ->
-          begin match d.prec with
-            OrYear d2 | YearInt d2 ->
+            match od with
+            | Some (Dgreg (_, Dfrench)) -> short_f_month d.month
+            | _ -> string_of_int d.month)
+      | None -> "")
+  | "orday" -> (
+      match eval_date_field od with
+      | Some d -> (
+          match d.prec with
+          | OrYear d2 | YearInt d2 ->
               if d2.day2 = 0 then "" else string_of_int d2.day2
-          | _ -> ""
-          end
-      | None -> ""
-      end
-  | "ormonth" ->
-      begin match eval_date_field od with
-        Some d ->
-          begin match d.prec with
-            OrYear d2 | YearInt d2 ->
+          | _ -> "")
+      | None -> "")
+  | "ormonth" -> (
+      match eval_date_field od with
+      | Some d -> (
+          match d.prec with
+          | OrYear d2 | YearInt d2 -> (
               if d2.month2 = 0 then ""
               else
-                begin match od with
-                  Some (Dgreg (_, Dfrench)) -> short_f_month d2.month2
-                | _ -> string_of_int d2.month2
-                end
-          | _ -> ""
-          end
-      | None -> ""
-      end
-  | "oryear" ->
-      begin match eval_date_field od with
-        Some d ->
-          begin match d.prec with
-            OrYear d2 | YearInt d2 -> string_of_int d2.year2
-          | _ -> ""
-          end
-      | None -> ""
-      end
-  | "prec" ->
-      begin match od with
-        Some (Dgreg ({prec = Sure}, _)) -> "sure"
-      | Some (Dgreg ({prec = About}, _)) -> "about"
-      | Some (Dgreg ({prec = Maybe}, _)) -> "maybe"
-      | Some (Dgreg ({prec = Before}, _)) -> "before"
-      | Some (Dgreg ({prec = After}, _)) -> "after"
-      | Some (Dgreg ({prec = OrYear _}, _)) -> "oryear"
-      | Some (Dgreg ({prec = YearInt _}, _)) -> "yearint"
-      | _ -> ""
-      end
-  | "text" ->
-      begin match od with
-        Some (Dtext s) -> Util.safe_html s
-      | _ -> ""
-      end
-  | "year" ->
-      begin match eval_date_field od with
-        Some d -> string_of_int d.year
-      | None -> ""
-      end
+                match od with
+                | Some (Dgreg (_, Dfrench)) -> short_f_month d2.month2
+                | _ -> string_of_int d2.month2)
+          | _ -> "")
+      | None -> "")
+  | "oryear" -> (
+      match eval_date_field od with
+      | Some d -> (
+          match d.prec with
+          | OrYear d2 | YearInt d2 -> string_of_int d2.year2
+          | _ -> "")
+      | None -> "")
+  | "prec" -> (
+      match od with
+      | Some (Dgreg ({ prec = Sure }, _)) -> "sure"
+      | Some (Dgreg ({ prec = About }, _)) -> "about"
+      | Some (Dgreg ({ prec = Maybe }, _)) -> "maybe"
+      | Some (Dgreg ({ prec = Before }, _)) -> "before"
+      | Some (Dgreg ({ prec = After }, _)) -> "after"
+      | Some (Dgreg ({ prec = OrYear _ }, _)) -> "oryear"
+      | Some (Dgreg ({ prec = YearInt _ }, _)) -> "yearint"
+      | _ -> "")
+  | "text" -> ( match od with Some (Dtext s) -> Util.safe_html s | _ -> "")
+  | "year" -> (
+      match eval_date_field od with
+      | Some d -> string_of_int d.year
+      | None -> "")
   | _ -> raise Not_found
-and eval_date_field =
-  function
-    Some d ->
-      begin match d with
-        Dgreg (d, Dgregorian) -> Some d
+
+and eval_date_field = function
+  | Some d -> (
+      match d with
+      | Dgreg (d, Dgregorian) -> Some d
       | Dgreg (d, Djulian) -> Some (Calendar.julian_of_gregorian d)
       | Dgreg (d, Dfrench) -> Some (Calendar.french_of_gregorian d)
       | Dgreg (d, Dhebrew) -> Some (Calendar.hebrew_of_gregorian d)
-      | _ -> None
-      end
+      | _ -> None)
   | None -> None
-and eval_event_var e =
-  function
-    ["e_name"] ->
-      begin match e with
-        Some {efam_name = name} ->
-          begin match name with
-            Efam_Marriage -> str_val "#marr"
+
+and eval_event_var e = function
+  | [ "e_name" ] -> (
+      match e with
+      | Some { efam_name = name } -> (
+          match name with
+          | Efam_Marriage -> str_val "#marr"
           | Efam_NoMarriage -> str_val "#nmar"
           | Efam_NoMention -> str_val "#nmen"
           | Efam_Engage -> str_val "#enga"
@@ -409,33 +391,27 @@ and eval_event_var e =
           | Efam_MarriageLicense -> str_val "#marl"
           | Efam_PACS -> str_val "#pacs"
           | Efam_Residence -> str_val "#resi"
-          | Efam_Name x -> str_val (Util.escape_html x)
-          end
-      | _ -> str_val ""
-      end
-  | ["e_place"] ->
-      begin match e with
-        Some {efam_place = x} -> str_val (Util.escape_html x)
-      | _ -> str_val ""
-      end
-  | ["e_note"] ->
-      begin match e with
-        Some {efam_note = x} -> str_val (Util.escape_html x)
-      | _ -> str_val ""
-      end
-  | ["e_src"] ->
-      begin match e with
-        Some {efam_src = x} -> str_val (Util.escape_html x)
-      | _ -> str_val ""
-      end
+          | Efam_Name x -> str_val (Util.escape_html x))
+      | _ -> str_val "")
+  | [ "e_place" ] -> (
+      match e with
+      | Some { efam_place = x } -> str_val (Util.escape_html x)
+      | _ -> str_val "")
+  | [ "e_note" ] -> (
+      match e with
+      | Some { efam_note = x } -> str_val (Util.escape_html x)
+      | _ -> str_val "")
+  | [ "e_src" ] -> (
+      match e with
+      | Some { efam_src = x } -> str_val (Util.escape_html x)
+      | _ -> str_val "")
   | _ -> raise Not_found
 
-and eval_parent' conf env k =
-  function
-    ["himher"] ->
+and eval_parent' conf env k = function
+  | [ "himher" ] ->
       let s =
         match get_env "cnt" env with
-          Vint 1 -> Utf8.capitalize_fst (transl_nth conf "him/her" 0)
+        | Vint 1 -> Utf8.capitalize_fst (transl_nth conf "him/her" 0)
         | Vint 2 -> Utf8.capitalize_fst (transl_nth conf "him/her" 1)
         | Vint _ -> transl conf "him/her"
         | _ -> "???"
@@ -443,131 +419,115 @@ and eval_parent' conf env k =
       str_val s
   | sl -> eval_key k sl
 
-and eval_key (fn, sn, oc, create, _) =
-  function
-    ["create"] -> str_val (if create <> Update.Link then "create" else "link")
-  | ["create"; s] -> str_val (eval_create create s)
-  | ["first_name"] -> str_val (Util.escape_html fn)
-  | ["occ"] -> str_val (if oc = 0 then "" else string_of_int oc)
-  | ["surname"] -> str_val (Util.escape_html sn)
+and eval_key (fn, sn, oc, create, _) = function
+  | [ "create" ] -> str_val (if create <> Update.Link then "create" else "link")
+  | [ "create"; s ] -> str_val (eval_create create s)
+  | [ "first_name" ] -> str_val (Util.escape_html fn)
+  | [ "occ" ] -> str_val (if oc = 0 then "" else string_of_int oc)
+  | [ "surname" ] -> str_val (Util.escape_html sn)
   | _ -> raise Not_found
 
 and eval_key_opt p sl = Some (eval_key p sl)
 
 (* TODO : looks bad *)
-and eval_create c =
-  function
-    "birth_day" ->
-      begin match c with
-        Update.Create
-          (_, Some {ci_birth_date = Some (Dgreg (dmy, Dfrench))}) ->
+and eval_create c = function
+  | "birth_day" -> (
+      match c with
+      | Update.Create (_, Some { ci_birth_date = Some (Dgreg (dmy, Dfrench)) })
+        ->
           let dmy = Calendar.french_of_gregorian dmy in
           if dmy.day <> 0 then string_of_int dmy.day else ""
-      | Update.Create (_, Some {ci_birth_date = Some (Dgreg ({day = d}, _))})
+      | Update.Create (_, Some { ci_birth_date = Some (Dgreg ({ day = d }, _)) })
         when d <> 0 ->
           string_of_int d
-      | _ -> ""
-      end
-  | "birth_month" ->
-      begin match c with
-        Update.Create
-          (_, Some {ci_birth_date = Some (Dgreg (dmy, Dfrench))}) ->
+      | _ -> "")
+  | "birth_month" -> (
+      match c with
+      | Update.Create (_, Some { ci_birth_date = Some (Dgreg (dmy, Dfrench)) })
+        ->
           let dmy = Calendar.french_of_gregorian dmy in
           if dmy.month <> 0 then short_f_month dmy.month else ""
       | Update.Create
-          (_, Some {ci_birth_date = Some (Dgreg ({month = m}, _))})
+          (_, Some { ci_birth_date = Some (Dgreg ({ month = m }, _)) })
         when m <> 0 ->
           string_of_int m
-      | _ -> ""
-      end
-  | "birth_place" ->
-      begin match c with
-        Update.Create (_, Some {ci_birth_place = pl}) -> Util.escape_html pl
-      | _ -> ""
-      end
-  | "birth_year" ->
-      begin match c with
-        Update.Create (_, Some ci) ->
-          begin match ci.ci_birth_date with
-            Some (Dgreg (dmy, Dfrench)) ->
+      | _ -> "")
+  | "birth_place" -> (
+      match c with
+      | Update.Create (_, Some { ci_birth_place = pl }) -> Util.escape_html pl
+      | _ -> "")
+  | "birth_year" -> (
+      match c with
+      | Update.Create (_, Some ci) -> (
+          match ci.ci_birth_date with
+          | Some (Dgreg (dmy, Dfrench)) ->
               let dmy = Calendar.french_of_gregorian dmy in
               add_precision (string_of_int dmy.year) dmy.prec
-          | Some (Dgreg ({year = y; prec = p}, _)) ->
+          | Some (Dgreg ({ year = y; prec = p }, _)) ->
               add_precision (string_of_int y) p
           | Some _ -> ""
-          | None -> if ci.ci_public then "p" else ""
-          end
-      | _ -> ""
-      end
-  | "death_day" ->
-      begin match c with
-        Update.Create
-          (_, Some {ci_death_date = Some (Dgreg (dmy, Dfrench))}) ->
+          | None -> if ci.ci_public then "p" else "")
+      | _ -> "")
+  | "death_day" -> (
+      match c with
+      | Update.Create (_, Some { ci_death_date = Some (Dgreg (dmy, Dfrench)) })
+        ->
           let dmy = Calendar.french_of_gregorian dmy in
           if dmy.day <> 0 then string_of_int dmy.day else ""
-      | Update.Create (_, Some {ci_death_date = Some (Dgreg ({day = d}, _))})
+      | Update.Create (_, Some { ci_death_date = Some (Dgreg ({ day = d }, _)) })
         when d <> 0 ->
           string_of_int d
-      | _ -> ""
-      end
-  | "death_month" ->
-      begin match c with
-        Update.Create
-          (_, Some {ci_death_date = Some (Dgreg (dmy, Dfrench))}) ->
+      | _ -> "")
+  | "death_month" -> (
+      match c with
+      | Update.Create (_, Some { ci_death_date = Some (Dgreg (dmy, Dfrench)) })
+        ->
           let dmy = Calendar.french_of_gregorian dmy in
           short_f_month dmy.month
       | Update.Create
-          (_, Some {ci_death_date = Some (Dgreg ({month = m}, _))})
+          (_, Some { ci_death_date = Some (Dgreg ({ month = m }, _)) })
         when m <> 0 ->
           string_of_int m
-      | _ -> ""
-      end
-  | "death_place" ->
-      begin match c with
-        Update.Create (_, Some {ci_death_place = pl}) -> Util.escape_html pl
-      | _ -> ""
-      end
-  | "death_year" ->
-      begin match c with
-        Update.Create
-          (_, Some {ci_death_date = Some (Dgreg (dmy, Dfrench))}) ->
+      | _ -> "")
+  | "death_place" -> (
+      match c with
+      | Update.Create (_, Some { ci_death_place = pl }) -> Util.escape_html pl
+      | _ -> "")
+  | "death_year" -> (
+      match c with
+      | Update.Create (_, Some { ci_death_date = Some (Dgreg (dmy, Dfrench)) })
+        ->
           let dmy = Calendar.french_of_gregorian dmy in
           add_precision (string_of_int dmy.year) dmy.prec
       | Update.Create
-          (_,
-           Some {ci_death_date = Some (Dgreg ({year = y; prec = p}, _))}) ->
+          (_, Some { ci_death_date = Some (Dgreg ({ year = y; prec = p }, _)) })
+        ->
           add_precision (string_of_int y) p
-      | Update.Create (_, Some {ci_death = death; ci_death_date = None}) ->
-          begin match death with
-            DeadDontKnowWhen -> "+"
-          | NotDead -> "-"
-          | _ -> ""
-          end
-      | _ -> ""
-      end
-  | "occupation" ->
-      begin match c with
-        Update.Create (_, Some {ci_occupation = occupation}) ->
+      | Update.Create (_, Some { ci_death = death; ci_death_date = None }) -> (
+          match death with DeadDontKnowWhen -> "+" | NotDead -> "-" | _ -> "")
+      | _ -> "")
+  | "occupation" -> (
+      match c with
+      | Update.Create (_, Some { ci_occupation = occupation }) ->
           Util.escape_html occupation
-      | _ -> ""
-      end
-  | "sex" ->
-      begin match c with
-        Update.Create (Male, _) -> "male"
+      | _ -> "")
+  | "sex" -> (
+      match c with
+      | Update.Create (Male, _) -> "male"
       | Update.Create (Female, _) -> "female"
       | Update.Create (Neuter, _) -> "neuter"
-      | _ -> ""
-      end
+      | _ -> "")
   | _ -> raise Not_found
+
 and add_precision s p =
   match p with
-    Maybe -> "?" ^ s
+  | Maybe -> "?" ^ s
   | Before -> "&lt;" ^ s
   | After -> "&gt;" ^ s
   | About -> "/" ^ s ^ "/"
   | _ -> s
-and eval_relation_kind =
-  function
+
+and eval_relation_kind = function
   | Married -> "marr"
   | NotMarried -> "not_marr"
   | Engaged -> "engaged"
@@ -578,45 +538,50 @@ and eval_relation_kind =
   | MarriageContract -> "contract"
   | MarriageLicense -> "license"
   | Pacs -> "pacs"
-  | Residence ->"residence"
+  | Residence -> "residence"
+
 (* TODO looks bad *)
-and eval_special_var conf base =
-  function
-    ["include_perso_header"] -> (* TODO merge with mainstream includes ?? *)
-      begin match p_getenv conf.env "ip" with
-        Some i ->
+and eval_special_var conf base = function
+  | [ "include_perso_header" ] -> (
+      (* TODO merge with mainstream includes ?? *)
+      match p_getenv conf.env "ip" with
+      | Some i ->
           let has_base_loop =
-            try let _ = Util.create_topological_sort conf base in false with
-              Consang.TopologicalSortError _ -> true
+            try
+              let _ = Util.create_topological_sort conf base in
+              false
+            with Consang.TopologicalSortError _ -> true
           in
           if has_base_loop then VVstring ""
           else
             let p = poi base (iper_of_string i) in
-            Perso.interp_templ_with_menu (fun _ -> ()) "perso_header" conf
-              base p;
+            Perso.interp_templ_with_menu
+              (fun _ -> ())
+              "perso_header" conf base p;
             VVstring ""
-      | None -> VVstring ""
-      end
+      | None -> VVstring "")
   | _ -> raise Not_found
+
 and eval_int_env var env =
   match get_env var env with
-    Vint x -> str_val (string_of_int x)
+  | Vint x -> str_val (string_of_int x)
   | _ -> raise Not_found
+
 and eval_string_env var env =
   match get_env var env with
-    Vstring x -> str_val (Util.escape_html x)
+  | Vstring x -> str_val (Util.escape_html x)
   | _ -> str_val ""
 
 (* print *)
 
 let print_foreach print_ast _eval_expr =
-  let rec print_foreach env (fam, cpl, des as fcd) _ s sl _ al =
+  let rec print_foreach env ((fam, cpl, des) as fcd) _ s sl _ al =
     match s :: sl with
-      ["child"] -> print_foreach_child env fcd al des.children
-    | ["fevent"] -> print_foreach_fevent env fcd al fam.fevents
-    | ["fwitness"] -> print_foreach_fwitness env fcd al fam.fevents
-    | ["witness"] -> print_foreach_witness env fcd al fam.witnesses
-    | ["parent"] -> print_foreach_parent env fcd al (Gutil.parent_array cpl)
+    | [ "child" ] -> print_foreach_child env fcd al des.children
+    | [ "fevent" ] -> print_foreach_fevent env fcd al fam.fevents
+    | [ "fwitness" ] -> print_foreach_fwitness env fcd al fam.fevents
+    | [ "witness" ] -> print_foreach_witness env fcd al fam.witnesses
+    | [ "parent" ] -> print_foreach_parent env fcd al (Gutil.parent_array cpl)
     | _ -> raise Not_found
   and print_foreach_child env fcd al arr =
     for i = 0 to max 1 (Array.length arr) - 1 do
@@ -624,37 +589,36 @@ let print_foreach print_ast _eval_expr =
       List.iter (print_ast env fcd) al
     done
   and print_foreach_fevent env fcd al list =
-    let rec loop first cnt =
-      function
-        _ :: l ->
+    let rec loop first cnt = function
+      | _ :: l ->
           let env =
-            ("cnt", Vint cnt) :: ("first", Vbool first) ::
-            ("last", Vbool (l = [])) :: env
+            ("cnt", Vint cnt) :: ("first", Vbool first)
+            :: ("last", Vbool (l = []))
+            :: env
           in
-          List.iter (print_ast env fcd) al; loop false (cnt + 1) l
+          List.iter (print_ast env fcd) al;
+          loop false (cnt + 1) l
       | [] -> ()
     in
     loop true 1 list
   and print_foreach_fwitness env fcd al list =
     match get_env "cnt" env with
-      Vint i ->
-        begin match
-          (try Some (List.nth list (i - 1)) with Failure _ -> None)
-        with
-          Some e ->
-            let rec loop first wcnt =
-              function
-                _ :: l ->
+    | Vint i -> (
+        match try Some (List.nth list (i - 1)) with Failure _ -> None with
+        | Some e ->
+            let rec loop first wcnt = function
+              | _ :: l ->
                   let env =
-                    ("wcnt", Vint wcnt) :: ("first", Vbool first) ::
-                    ("last", Vbool (l = [])) :: env
+                    ("wcnt", Vint wcnt) :: ("first", Vbool first)
+                    :: ("last", Vbool (l = []))
+                    :: env
                   in
-                  List.iter (print_ast env fcd) al; loop false (wcnt + 1) l
+                  List.iter (print_ast env fcd) al;
+                  loop false (wcnt + 1) l
               | [] -> ()
             in
             loop true 1 (Array.to_list e.efam_witnesses)
-        | None -> ()
-        end
+        | None -> ())
     | _ -> ()
   and print_foreach_witness env fcd al arr =
     for i = 0 to max 2 (Array.length arr) - 1 do
@@ -671,27 +635,32 @@ let print_foreach print_ast _eval_expr =
 
 let print_update_fam conf base fcd digest =
   match p_getenv conf.env "m" with
-    Some
-      ("ADD_FAM" | "ADD_FAM_OK" | "ADD_PAR" | "ADD_PAR_OK" | "MOD_FAM" | "MOD_FAM_OK" |
-       "MRG_DUP_FAM_Y_N" | "MRG_FAM" | "MRG_FAM_OK" | "MRG_MOD_FAM_OK") ->
-      let env = ["digest", Vstring digest] in
+  | Some
+      ( "ADD_FAM" | "ADD_FAM_OK" | "ADD_PAR" | "ADD_PAR_OK" | "MOD_FAM"
+      | "MOD_FAM_OK" | "MRG_DUP_FAM_Y_N" | "MRG_FAM" | "MRG_FAM_OK"
+      | "MRG_MOD_FAM_OK" ) ->
+      let env = [ ("digest", Vstring digest) ] in
       Hutil.interp conf "updfam"
-        {Templ.eval_var = eval_var conf base;
-         Templ.eval_transl = (fun _ -> Templ.eval_transl conf);
-         Templ.eval_predefined_apply = (fun _ -> raise Not_found);
-         Templ.get_vother = get_vother; Templ.set_vother = set_vother;
-         Templ.print_foreach = print_foreach}
+        {
+          Templ.eval_var = eval_var conf base;
+          Templ.eval_transl = (fun _ -> Templ.eval_transl conf);
+          Templ.eval_predefined_apply = (fun _ -> raise Not_found);
+          Templ.get_vother;
+          Templ.set_vother;
+          Templ.print_foreach;
+        }
         env fcd
   | _ -> Hutil.incorrect_request conf
 
 let print_del1 conf base ifam =
   let title _ =
     let s = transl_nth conf "family/families" 0 in
-    Output.print_string conf (Utf8.capitalize_fst (transl_decline conf "delete" s))
+    Output.print_string conf
+      (Utf8.capitalize_fst (transl_decline conf "delete" s))
   in
   let p =
     match p_getenv conf.env "ip" with
-      Some ip -> poi base (iper_of_string ip)
+    | Some ip -> poi base (iper_of_string ip)
     | None -> Gwdb.empty_person base dummy_iper
   in
   Perso.interp_notempl_with_menu title "perso_header" conf base p;
@@ -704,17 +673,18 @@ let print_del1 conf base ifam =
   Util.hidden_env conf;
   Output.printf conf "<input type=\"hidden\" name=\"i\" value=\"%s\">\n"
     (string_of_ifam ifam);
-  begin match p_getenv conf.env "ip" with
-    Some ip ->
+  (match p_getenv conf.env "ip" with
+  | Some ip ->
       Output.printf conf "<input type=\"hidden\" name=\"ip\" value=\"%s\">\n" ip
-  | None -> ()
-  end;
-  Output.print_string conf "<input type=\"hidden\" name=\"m\" value=\"DEL_FAM_OK\">\n";
+  | None -> ());
+  Output.print_string conf
+    "<input type=\"hidden\" name=\"m\" value=\"DEL_FAM_OK\">\n";
   Output.print_string conf "</p>\n";
   Output.print_string conf "<p>\n";
   Output.print_string conf
     "<button type=\"submit\" class=\"btn btn-secondary btn-lg\">\n";
-  Output.print_string conf (Utf8.capitalize_fst (transl_nth conf "validate/delete" 0));
+  Output.print_string conf
+    (Utf8.capitalize_fst (transl_nth conf "validate/delete" 0));
   Output.print_string conf "</button>\n";
   Output.print_string conf "</p>\n";
   Output.print_string conf "</form>\n";
@@ -723,13 +693,15 @@ let print_del1 conf base ifam =
 
 let print_inv1 conf base p ifam1 ifam2 =
   let title _ =
-    Output.print_string conf (Utf8.capitalize_fst (transl_decline conf "invert" ""))
+    Output.print_string conf
+      (Utf8.capitalize_fst (transl_decline conf "invert" ""))
   in
   let cpl1 = foi base ifam1 in
   let cpl2 = foi base ifam2 in
   Perso.interp_notempl_with_menu title "perso_header" conf base p;
   Output.printf conf "%s%s"
-    (Utf8.capitalize_fst (transl conf "invert the order of the following families"))
+    (Utf8.capitalize_fst
+       (transl conf "invert the order of the following families"))
     (Util.transl conf ":");
   Output.print_string conf "<ul>\n";
   Output.print_string conf "<li>\n";
@@ -751,12 +723,14 @@ let print_inv1 conf base p ifam1 ifam2 =
     (string_of_iper (get_iper p));
   Output.printf conf "<input type=\"hidden\" name=\"f\" value=\"%s\">\n"
     (string_of_ifam ifam2);
-  Output.print_string conf "<input type=\"hidden\" name=\"m\" value=\"INV_FAM_OK\">\n";
+  Output.print_string conf
+    "<input type=\"hidden\" name=\"m\" value=\"INV_FAM_OK\">\n";
   Output.print_string conf "</p>\n";
   Output.print_string conf "<p>\n";
   Output.print_string conf
     "<button type=\"submit\" class=\"btn btn-secondary btn-lg\">\n";
-  Output.print_string conf (Utf8.capitalize_fst (transl_nth conf "validate/delete" 0));
+  Output.print_string conf
+    (Utf8.capitalize_fst (transl_nth conf "validate/delete" 0));
   Output.print_string conf "</button>\n";
   Output.print_string conf "</p>\n";
   Output.print_string conf "</form>\n";
@@ -764,63 +738,91 @@ let print_inv1 conf base p ifam1 ifam2 =
   Hutil.trailer conf
 
 let print_add conf base =
-  let (fath, moth, digest) =
+  let fath, moth, digest =
     match p_getenv conf.env "ip" with
-      Some i ->
+    | Some i ->
         let p = poi base (iper_of_string i) in
         let fath =
-          if get_sex p = Male ||
-             get_sex p = Neuter && p_getenv conf.env "sex" = Some "M"
-          then
-            person_key base (get_iper p)
-          else "", "", 0, Update.Create (Male, None), ""
+          if
+            get_sex p = Male
+            || (get_sex p = Neuter && p_getenv conf.env "sex" = Some "M")
+          then person_key base (get_iper p)
+          else ("", "", 0, Update.Create (Male, None), "")
         in
         let moth =
-          if get_sex p = Female ||
-             get_sex p = Neuter && p_getenv conf.env "sex" = Some "F"
-          then
-            person_key base (get_iper p)
-          else "", "", 0, Update.Create (Female, None), ""
+          if
+            get_sex p = Female
+            || (get_sex p = Neuter && p_getenv conf.env "sex" = Some "F")
+          then person_key base (get_iper p)
+          else ("", "", 0, Update.Create (Female, None), "")
         in
         let digest = string_of_int (Array.length (get_family p)) in
-        fath, moth, digest
+        (fath, moth, digest)
     | None ->
-        ("", "", 0, Update.Create (Male, None), ""),
-        ("", "", 0, Update.Create (Female, None), ""), ""
+        ( ("", "", 0, Update.Create (Male, None), ""),
+          ("", "", 0, Update.Create (Female, None), ""),
+          "" )
   in
   let fam =
-    {marriage = Adef.cdate_None; marriage_place = ""; marriage_note = "";
-     marriage_src = ""; witnesses = [| |]; relation = Married;
-     divorce = NotDivorced; fevents = []; comment = ""; origin_file = "";
-     fsources = default_source conf; fam_index = dummy_ifam}
+    {
+      marriage = Adef.cdate_None;
+      marriage_place = "";
+      marriage_note = "";
+      marriage_src = "";
+      witnesses = [||];
+      relation = Married;
+      divorce = NotDivorced;
+      fevents = [];
+      comment = "";
+      origin_file = "";
+      fsources = default_source conf;
+      fam_index = dummy_ifam;
+    }
   and cpl = Gutil.couple conf.multi_parents fath moth
-  and des = {children = [| |]} in
+  and des = { children = [||] } in
   print_update_fam conf base (fam, cpl, des) digest
 
 let print_add_parents conf base =
   match p_getenv conf.env "ip" with
-    Some i ->
+  | Some i ->
       let p = poi base (iper_of_string i) in
       let fam =
-        {marriage = Adef.cdate_None; marriage_place = ""; marriage_note = "";
-         marriage_src = ""; witnesses = [| |]; relation = Married;
-         divorce = NotDivorced; fevents = []; comment = ""; origin_file = "";
-         fsources = default_source conf; fam_index = dummy_ifam}
+        {
+          marriage = Adef.cdate_None;
+          marriage_place = "";
+          marriage_note = "";
+          marriage_src = "";
+          witnesses = [||];
+          relation = Married;
+          divorce = NotDivorced;
+          fevents = [];
+          comment = "";
+          origin_file = "";
+          fsources = default_source conf;
+          fam_index = dummy_ifam;
+        }
       and cpl =
         Gutil.couple conf.multi_parents
           ("", sou base (get_surname p), 0, Update.Create (Neuter, None), "")
           ("", "", 0, Update.Create (Neuter, None), "")
       and des =
-        {children =
-          [| sou base (get_first_name p), sou base (get_surname p), get_occ p,
-             Update.Link, "" |]}
+        {
+          children =
+            [|
+              ( sou base (get_first_name p),
+                sou base (get_surname p),
+                get_occ p,
+                Update.Link,
+                "" );
+            |];
+        }
       in
       print_update_fam conf base (fam, cpl, des) ""
   | _ -> Hutil.incorrect_request conf
 
 let print_mod conf base =
   match p_getenv conf.env "i" with
-    Some i ->
+  | Some i ->
       let sfam = string_family_of conf base (ifam_of_string i) in
       let digest = Update.digest_family sfam in
       print_update_fam conf base sfam digest
@@ -828,43 +830,38 @@ let print_mod conf base =
 
 let print_del conf base =
   match p_getenv conf.env "i" with
-    Some i -> print_del1 conf base (ifam_of_string i)
+  | Some i -> print_del1 conf base (ifam_of_string i)
   | _ -> Hutil.incorrect_request conf
 
-let rec find_families ifam =
-  function
-    ifam1 :: ifam2 :: ifaml ->
+let rec find_families ifam = function
+  | ifam1 :: ifam2 :: ifaml ->
       if ifam2 = ifam then Some (ifam1, ifam2)
       else find_families ifam (ifam2 :: ifaml)
   | _ -> None
 
 let print_inv conf base =
-  match p_getenv conf.env "i", p_getenv conf.env "f" with
-    Some ip, Some ifam ->
+  match (p_getenv conf.env "i", p_getenv conf.env "f") with
+  | Some ip, Some ifam -> (
       let u = poi base (iper_of_string ip) in
-      begin match
+      match
         find_families (ifam_of_string ifam) (Array.to_list (get_family u))
       with
-        Some (ifam1, ifam2) ->
+      | Some (ifam1, ifam2) ->
           let p = poi base (iper_of_string ip) in
           print_inv1 conf base p ifam1 ifam2
-      | _ -> Hutil.incorrect_request conf
-      end
+      | _ -> Hutil.incorrect_request conf)
   | _ -> Hutil.incorrect_request conf
 
 let change_order u ifam n =
-  let rec loop i =
-    function
-      [] -> if i = n then [ifam] else []
+  let rec loop i = function
+    | [] -> if i = n then [ ifam ] else []
     | fam :: faml ->
         if ifam = fam then
           (* S: The following code is strange: if i=n, fam is added to the iterated list;
-             at the next iteration, we reach the same block and i = n+1, hence fam is removed  *)
-          if i = n
-          then ifam :: loop (i + 1) (fam :: faml)
+             at the next iteration, we reach the same block and i = n+1, hence fam is removed *)
+          if i = n then ifam :: loop (i + 1) (fam :: faml)
           else loop i faml
-
-        (* S: Same remark than before: fam is added to the iterated list, hence discarded after *)
+            (* S: Same remark than before: fam is added to the iterated list, hence discarded after *)
         else if i = n then ifam :: loop (i + 1) (fam :: faml)
         else fam :: loop (i + 1) faml
   in
@@ -872,46 +869,46 @@ let change_order u ifam n =
 
 let print_change_order conf base =
   match
-    p_getenv conf.env "i", p_getenv conf.env "f", p_getint conf.env "n"
+    (p_getenv conf.env "i", p_getenv conf.env "f", p_getint conf.env "n")
   with
-    Some ip, Some ifam, Some n ->
+  | Some ip, Some ifam, Some n ->
       let ip = iper_of_string ip in
       let ifam = ifam_of_string ifam in
       let p = poi base ip in
       let print_list arr diff_arr =
         Array.iteri
           (fun i ifam ->
-             let fam = foi base ifam in
-             let sp = Gutil.spouse (get_iper p) fam in
-             let sp = poi base sp in
-             Output.printf conf "<li %s>\n"
-               (if diff_arr.(i) then "style=\"background:pink\"" else "");
-             Output.printf conf "%s%s" (p_first_name base p)
-               (if get_occ p = 0 then ""
-                else "." ^ string_of_int (get_occ p));
-             Output.print_string conf "  &amp;";
-             Output.printf conf "%s\n"
-               (DateDisplay.short_marriage_date_text conf base fam p sp);
-             Output.printf conf "%s%s %s" (p_first_name base sp)
-               (if get_occ sp = 0 then ""
-                else "." ^ string_of_int (get_occ sp))
-               (p_surname base sp);
-             Output.print_string conf "\n";
-             Output.print_string conf "</li>\n")
+            let fam = foi base ifam in
+            let sp = Gutil.spouse (get_iper p) fam in
+            let sp = poi base sp in
+            Output.printf conf "<li %s>\n"
+              (if diff_arr.(i) then "style=\"background:pink\"" else "");
+            Output.printf conf "%s%s" (p_first_name base p)
+              (if get_occ p = 0 then "" else "." ^ string_of_int (get_occ p));
+            Output.print_string conf "  &amp;";
+            Output.printf conf "%s\n"
+              (DateDisplay.short_marriage_date_text conf base fam p sp);
+            Output.printf conf "%s%s %s" (p_first_name base sp)
+              (if get_occ sp = 0 then "" else "." ^ string_of_int (get_occ sp))
+              (p_surname base sp);
+            Output.print_string conf "\n";
+            Output.print_string conf "</li>\n")
           arr
       in
       let after = change_order p ifam n in
-      let (before, after) = get_family p, Array.of_list after in
-      let (bef_d, aft_d) = Difference.f before after in
+      let before, after = (get_family p, Array.of_list after) in
+      let bef_d, aft_d = Difference.f before after in
       let title _ =
-        Output.print_string conf (Utf8.capitalize_fst (transl_decline conf "invert" ""))
+        Output.print_string conf
+          (Utf8.capitalize_fst (transl_decline conf "invert" ""))
       in
       Perso.interp_templ_with_menu title "perso_header" conf base p;
       Output.print_string conf "<h2>\n";
       title false;
       Output.print_string conf "</h2>\n";
       Output.printf conf "%s%s"
-        (Utf8.capitalize_fst (transl conf "invert the order of the following families"))
+        (Utf8.capitalize_fst
+           (transl conf "invert the order of the following families"))
         (Util.transl conf ":");
       Output.print_string conf "<table style=\"margin:1em\">\n";
       Output.print_string conf "<tr>\n";
@@ -941,7 +938,8 @@ let print_change_order conf base =
       Output.print_string conf "<p>\n";
       Output.print_string conf
         "<button type=\"submit\" class=\"btn btn-secondary btn-lg\">\n";
-      Output.print_string conf (Utf8.capitalize_fst (transl_nth conf "validate/delete" 0));
+      Output.print_string conf
+        (Utf8.capitalize_fst (transl_nth conf "validate/delete" 0));
       Output.print_string conf "</button>\n";
       Output.print_string conf "</p>\n";
       Output.print_string conf "</form>\n";
@@ -951,14 +949,17 @@ let print_change_order conf base =
 
 let print_change_event_order conf base =
   match p_getenv conf.env "i" with
-    Some i ->
+  | Some i ->
       let i = ifam_of_string i in
       let sfam = string_family_of conf base i in
       Hutil.interp conf "updfamevt"
-        {Templ.eval_var = eval_var conf base;
-         Templ.eval_transl = (fun _ -> Templ.eval_transl conf);
-         Templ.eval_predefined_apply = (fun _ -> raise Not_found);
-         Templ.get_vother = get_vother; Templ.set_vother = set_vother;
-         Templ.print_foreach = print_foreach}
+        {
+          Templ.eval_var = eval_var conf base;
+          Templ.eval_transl = (fun _ -> Templ.eval_transl conf);
+          Templ.eval_predefined_apply = (fun _ -> raise Not_found);
+          Templ.get_vother;
+          Templ.set_vother;
+          Templ.print_foreach;
+        }
         [] sfam
   | _ -> Hutil.incorrect_request conf
