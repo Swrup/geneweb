@@ -1976,7 +1976,7 @@ let jpeg_image_size ic =
         if exif_type && not found then loop true
         else
           begin
-            for i = 1 to 3 do let _ = input_char ic in () done;
+            for _i = 1 to 3 do let _ = input_char ic in () done;
             let a = input_char ic in
             let b = input_char ic in
             let c = input_char ic in
@@ -1989,7 +1989,7 @@ let jpeg_image_size ic =
         let b = input_char ic in
         let len = Char.code a lsl 8 lor Char.code b in
         let len = if len >= 32768 then 0 else len in
-        for i = 1 to len - 2 do let _ = input_char ic in () done;
+        for _i = 1 to len - 2 do let _ = input_char ic in () done;
         if Char.code ch <> 0xDA then loop found else None
     in
     loop false
@@ -2443,24 +2443,24 @@ let pre_text_size txt =
   normal 0 0
 
 let print_pre_center conf sz txt =
-  for i = 1 to (sz - pre_text_size txt) / 2 do Output.print_string conf " " done;
+  for _i = 1 to (sz - pre_text_size txt) / 2 do Output.print_string conf " " done;
   Output.printf conf "%s\n" txt
 
 let print_pre_left conf sz txt =
   let tsz = pre_text_size txt in
   if tsz < sz / 2 - 1 then
-    for i = 2 to (sz / 2 - 1 - tsz) / 2 do Output.print_string conf " " done;
+    for _i = 2 to (sz / 2 - 1 - tsz) / 2 do Output.print_string conf " " done;
   Output.printf conf " %s\n" txt
 
 let print_pre_right conf sz txt =
   let tsz = pre_text_size txt in
   if tsz < sz / 2 - 1 then
     begin
-      for i = 1 to sz / 2 do Output.print_string conf " " done;
-      for i = 1 to (sz / 2 - 1 - tsz) / 2 do Output.print_string conf " " done;
+      for _i = 1 to sz / 2 do Output.print_string conf " " done;
+      for _i = 1 to (sz / 2 - 1 - tsz) / 2 do Output.print_string conf " " done;
       ()
     end
-  else for i = 1 to sz - pre_text_size txt - 1 do Output.print_string conf " " done;
+  else for _i = 1 to sz - pre_text_size txt - 1 do Output.print_string conf " " done;
   Output.printf conf " %s\n" txt
 
 let of_course_died conf p =
